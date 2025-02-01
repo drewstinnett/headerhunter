@@ -6,8 +6,9 @@ the request and response headers
 ## Usage
 
 ```bash
-headerhunter/ serve https://www.google.com --addr 127.0.0.1:3000
+headerhunter serve https://www.google.com --addr 127.0.0.1:3000
 2025/02/01 16:42:46 INFO headerhunter 🫨 : launching http server addr=127.0.0.1:3000
+## curl http://127.0.0.1:3000/
 {"type":"request","time":"2025-02-01T16:43:06.689213-05:00","headers":{"Accept":["*/*"],"Content-Length":["3"],"Content-Type":["application/x-www-form-urlencoded"],"User-Agent":["curl/8.7.1"]},"remote_addr":"
 127.0.0.1:63538","method":"POST","url":"/index.html","size":3}
 {"type":"response","time":"2025-02-01T16:43:06.88428-05:00","status_code":404,"headers":{"Alt-Svc":["h3=\":443\"; ma=2592000,h3-29=\":443\"; ma=2592000"],"Content-Length":["1571"],"Content-Type":["text/html;
