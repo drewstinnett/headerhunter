@@ -59,7 +59,7 @@ $ headehunter serve https://www.example.com
 				<-ctx.Done()
 				shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
-				if err := s.Shutdown(shutdownCtx); err != nil {
+				if err = s.Shutdown(shutdownCtx); err != nil {
 					slog.Error("error shutting down server", "error", err)
 				}
 			}()
@@ -76,10 +76,11 @@ $ headehunter serve https://www.example.com
 	}
 	cmd.PersistentFlags().StringP("addr", "a", ":3000", "address to listen on")
 	cmd.PersistentFlags().StringP("prefix", "p", "/", "prefix to route requests to")
-	cmd.PersistentFlags().StringP("cert", "c", "", "TLS Cert")
-	cmd.PersistentFlags().StringP("key", "k", "", "TLS Key")
 	cmd.PersistentFlags().Duration("read-timeout", 10*time.Minute, "read timeout for the server")
 	cmd.PersistentFlags().Duration("write-timeout", 10*time.Minute, "write timeout for the server")
+	// TLS Options
+	cmd.PersistentFlags().StringP("cert", "c", "", "TLS Cert")
+	cmd.PersistentFlags().StringP("key", "k", "", "TLS Key")
 	cmd.MarkFlagsRequiredTogether("cert", "key")
 	return cmd
 }

@@ -18,8 +18,7 @@ import (
 
 // Hunter contains all of the methods and such to do the headerhunter
 type Hunter struct {
-	writer io.Writer
-	// mode      Mode
+	writer         io.Writer
 	handler        http.Handler
 	prefix         string
 	staticDir      string
@@ -62,7 +61,13 @@ func (h Hunter) Handler() (http.Handler, error) {
 	case h.staticDir != "":
 		handler = http.FileServer(http.Dir(h.staticDir))
 	case h.proxyURL != nil:
-		handler = httputil.NewSingleHostReverseProxy(h.proxyURL)
+		p := httputil.NewSingleHostReverseProxy(h.proxyURL)
+		p.Director = func(req *http.Request) {
+			req.Host = h.proxyURL.Host
+			req.URL.Host = h.proxyURL.Host
+			req.URL.Scheme = h.proxyURL.Scheme
+		}
+		handler = p
 	default:
 		return nil, errors.New("unknown mode, no staticDir or remoteURL specified")
 	}

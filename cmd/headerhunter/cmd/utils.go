@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// mustGetCmd uses generics to get a given flag with the appropriate Type from a cobra.Command
+// mustGetCmd uses generics to get a given flag with the appropriate Type from a cobra.Command.
 func mustGetCmd[T []int | []string | int | string | bool | time.Duration](cmd cobra.Command, s string) T {
 	switch any(new(T)).(type) {
 	case *int:
