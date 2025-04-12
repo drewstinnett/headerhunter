@@ -35,7 +35,7 @@ func Execute() {
 	}
 }
 
-func init() {
+func init() { //nolint: gochecknoinits // We have to initialize the cobra config on load
 	cobra.OnInitialize(initConfig)
 }
 

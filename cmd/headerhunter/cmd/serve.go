@@ -15,6 +15,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	defaultTimeOutSeconds      = 5
+	defaultReadTimeoutMinutes  = 10
+	defaultWriteTimeoutMinutes = 10
+)
+
 func hunterWithCmd(cmd *cobra.Command, args []string) (*headerhunter.Hunter, error) {
 	var opt headerhunter.Option
 	if strings.HasPrefix(args[0], "http") {
@@ -57,7 +63,7 @@ $ headehunter serve https://www.example.com
 
 			go func() {
 				<-ctx.Done()
-				shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				shutdownCtx, cancel := context.WithTimeout(context.Background(), defaultTimeOutSeconds*time.Second)
 				defer cancel()
 				if err = s.Shutdown(shutdownCtx); err != nil {
 					slog.Error("error shutting down server", "error", err)
@@ -76,8 +82,9 @@ $ headehunter serve https://www.example.com
 	}
 	cmd.PersistentFlags().StringP("addr", "a", ":3000", "address to listen on")
 	cmd.PersistentFlags().StringP("prefix", "p", "/", "prefix to route requests to")
-	cmd.PersistentFlags().Duration("read-timeout", 10*time.Minute, "read timeout for the server")
-	cmd.PersistentFlags().Duration("write-timeout", 10*time.Minute, "write timeout for the server")
+	cmd.PersistentFlags().Duration("read-timeout", defaultReadTimeoutMinutes*time.Minute, "read timeout for the server")
+	cmd.PersistentFlags().
+		Duration("write-timeout", defaultWriteTimeoutMinutes*time.Minute, "write timeout for the server")
 	// TLS Options
 	cmd.PersistentFlags().StringP("cert", "c", "", "TLS Cert")
 	cmd.PersistentFlags().StringP("key", "k", "", "TLS Key")

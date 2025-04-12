@@ -4,6 +4,7 @@ go 1.23
 
 require (
 	github.com/charmbracelet/log v0.4.0
+	github.com/drewstinnett/inspectareq v0.0.0-20250216004307-f29a703aefc1
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.10.0
 )

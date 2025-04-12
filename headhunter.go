@@ -14,9 +14,11 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/drewstinnett/inspectareq"
 )
 
-// Hunter contains all of the methods and such to do the headerhunter
+// Hunter contains all of the methods and such to do the headerhunter.
 type Hunter struct {
 	writer         io.Writer
 	handler        http.Handler
@@ -24,6 +26,7 @@ type Hunter struct {
 	staticDir      string
 	proxyURLString string
 	proxyURL       *url.URL
+	logger         *slog.Logger
 }
 
 type requestLog struct {
@@ -53,7 +56,7 @@ func headerMap(h http.Header) map[string][]string {
 	return m
 }
 
-// Handler returns an http.Handler based on the parameters defined in the Hunter
+// Handler returns an http.Handler based on the parameters defined in the Hunter.
 func (h Hunter) Handler() (http.Handler, error) {
 	mux := http.NewServeMux()
 	var handler http.Handler
@@ -75,10 +78,10 @@ func (h Hunter) Handler() (http.Handler, error) {
 	return mux, nil
 }
 
-// ServeHTTP serves up the Hunter
+// ServeHTTP serves up the Hunter.
 func (h Hunter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err := h.logRequest(r); err != nil {
-		slog.Warn("error logging request", "error", err)
+		h.logger.Warn("error logging request", "error", err)
 	}
 
 	rl := &responseLogger{ResponseWriter: w, statusCode: http.StatusOK}
@@ -86,18 +89,19 @@ func (h Hunter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.handler.ServeHTTP(rl, r)
 
 	if err := h.logResponse(rl, r); err != nil {
-		slog.Warn("error logging response", "error", err)
+		h.logger.Warn("error logging response", "error", err)
 	}
 }
 
-// Option is passed in to New to define it's behavior
+// Option is passed in to New to define it's behavior.
 type Option func(*Hunter)
 
-// New returns a new Hunter object using functional options
+// New returns a new Hunter object using functional options.
 func New(opts ...Option) (*Hunter, error) {
 	h := &Hunter{
 		writer: os.Stdout,
 		prefix: "/",
+		logger: slog.Default(),
 	}
 	for _, opt := range opts {
 		opt(h)
@@ -127,28 +131,28 @@ func New(opts ...Option) (*Hunter, error) {
 	return h, nil
 }
 
-// WithWriter sets the writer for a Hunter
+// WithWriter sets the writer for a Hunter.
 func WithWriter(w io.Writer) Option {
 	return func(h *Hunter) {
 		h.writer = w
 	}
 }
 
-// WithStaticDir sets the static directory for a StaticMode functionality
+// WithStaticDir sets the static directory for a StaticMode functionality.
 func WithStaticDir(s string) Option {
 	return func(h *Hunter) {
 		h.staticDir = s
 	}
 }
 
-// WithProxyURL sets the ProxyURL to proxy all the stuff
+// WithProxyURL sets the ProxyURL to proxy all the stuff.
 func WithProxyURL(s string) Option {
 	return func(h *Hunter) {
 		h.proxyURLString = s
 	}
 }
 
-// WithPrefix sets the URL prefix for all the forwarding
+// WithPrefix sets the URL prefix for all the forwarding.
 func WithPrefix(s string) Option {
 	return func(h *Hunter) {
 		// Always ensure the string ends in a single /
@@ -210,6 +214,7 @@ func readBodySize(r *http.Request) (int, error) {
 }
 
 func (h Hunter) logRequest(r *http.Request) error {
+	inspectareq.Print(r)
 	// Read and measure request body
 	bs, err := readBodySize(r)
 	if err != nil {
