@@ -2,20 +2,28 @@ package headerhunter
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"github.com/stretchr/testify/require"
 )
 
 func TestNew(t *testing.T) {
-	_, err := New()
-	require.EqualError(t, err, "must set staticDir or proxyURL")
+	tests := []struct {
+		args    []Option
+		wantErr string
+	}{
+		{args: nil, wantErr: "must set staticDir or proxyURL"},
+		{args: []Option{WithStaticDir("foo"), WithProxyURL("bar")}, wantErr: "only set either staticDir or proxyURL"},
+	}
 
-	_, err = New(WithStaticDir("foo"), WithProxyURL("bar"))
-	require.EqualError(t, err, "only set either staticDir or proxyURL")
+	for _, tt := range tests {
+		_, err := New(tt.args...)
+		if err == nil || err.Error() != tt.wantErr {
+			t.Errorf("expected error %q, got %v", tt.wantErr, err)
+		}
+	}
 }
 
 func TestStaticMode(t *testing.T) {
@@ -24,23 +32,34 @@ func TestStaticMode(t *testing.T) {
 		WithWriter(b),
 		WithStaticDir("./testdata/static"),
 	)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("failed to create new Hunter: %v", err)
+	}
 
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
-	req := mustReq("GET", srv.URL+"/index.html", nil)
-	req.Header.Set("foo", "bar")
-	req.Header.Set("user-agent", "test")
+	req := mustReq(context.Background(), "GET", srv.URL+"/index.html", nil)
+	req.Header.Set("Foo", "bar")
+	req.Header.Set("User-Agent", "test")
 
 	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
+	if err != nil {
+		t.Errorf("failed to make request: %v", err)
+	}
+	defer dclose(resp.Body)
 
 	got, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	require.Equal(t, "Hello fellow Hunter!\n", string(got))
-	require.Contains(t, b.String(), `{"Accept-Encoding":["gzip"],"Foo":["bar"],"User-Agent":["test"]}`)
+	if err != nil {
+		t.Errorf("failed to read response body: %v", err)
+	}
+	if got, expected := string(got), "Hello fellow Hunter!\n"; got != expected {
+		t.Errorf("expected %q, got %q", expected, got)
+	}
+
+	if got, expected := b.String(), `{"Accept-Encoding":["gzip"],"Foo":["bar"],"User-Agent":["test"]}`; !bytes.Contains([]byte(got), []byte(expected)) {
+		t.Errorf("expected %q, got %q", expected, got)
+	}
 }
 
 func TestProxyMode(t *testing.T) {
@@ -56,31 +75,33 @@ func TestProxyMode(t *testing.T) {
 		WithWriter(b),
 		WithProxyURL(upstream.URL),
 	)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("failed to create new Hunter: %v", err)
+	}
 
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
-	req := mustReq("GET", srv.URL+"/index.html", nil)
-	req.Header.Set("foo", "bar")
-	req.Header.Set("user-agent", "test")
+	req := mustReq(context.Background(), "GET", srv.URL+"/index.html", nil)
+	req.Header.Set("Foo", "bar")
+	req.Header.Set("User-Agent", "test")
 
 	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
+	if err != nil {
+		t.Fatalf("failed to make request: %v", err)
+	}
+	defer dclose(resp.Body)
 
 	got, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	require.Equal(t, "Hello from upstream", string(got))
-	require.Contains(t, b.String(), `{"Accept-Encoding":["gzip"],"Foo":["bar"],"User-Agent":["test"]}`)
-}
-
-func mustReq(method, url string, body io.Reader) *http.Request {
-	got, err := http.NewRequest(method, url, body)
 	if err != nil {
-		panic(err)
+		t.Fatalf("failed to read response body: %v", err)
 	}
-	return got
+	if got, expect := string(got), "Hello from upstream"; got != expect {
+		t.Fatalf("expected %q, got %q", expect, got)
+	}
+	if got, expect := b.String(), `{"Accept-Encoding":["gzip"],"Foo":["bar"],"User-Agent":["test"]}`; !bytes.Contains([]byte(got), []byte(expect)) {
+		t.Fatalf("expected %q, got %q", expect, got)
+	}
 }
 
 func TestPrefix(t *testing.T) {
@@ -95,20 +116,28 @@ func TestPrefix(t *testing.T) {
 		WithPrefix("/prefix"),
 		WithProxyURL(upstream.URL),
 	)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("failed to create new Hunter: %v", err)
+	}
 
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
-	req := mustReq("GET", srv.URL+"/prefix/index.html", nil)
+	req := mustReq(context.Background(), "GET", srv.URL+"/prefix/index.html", nil)
 
 	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
+	if err != nil {
+		t.Fatalf("failed to make request: %v", err)
+	}
+	defer dclose(resp.Body)
 
 	got, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	require.Equal(t, "Hello from upstream", string(got))
+	if err != nil {
+		t.Fatalf("failed to read response body: %v", err)
+	}
+	if got, expect := string(got), "Hello from upstream"; got != expect {
+		t.Fatalf("expected %q, got %q", expect, got)
+	}
 }
 
 func TestSizeReporting(t *testing.T) {
@@ -124,20 +153,46 @@ func TestSizeReporting(t *testing.T) {
 		WithWriter(b),
 		WithProxyURL(upstream.URL),
 	)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("failed to create new Hunter: %v", err)
+	}
 
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
-	req := mustReq("POST", srv.URL+"/", bytes.NewReader([]byte("hi")))
+	req := mustReq(context.Background(), "POST", srv.URL+"/", bytes.NewReader([]byte("hi")))
 
 	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
+	if err != nil {
+		t.Fatalf("failed to make request: %v", err)
+	}
+	defer dclose(resp.Body)
 
 	got, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	require.Equal(t, "Hello from upstream", string(got))
-	require.Contains(t, b.String(), `"size":2`)  // size of request
-	require.Contains(t, b.String(), `"size":19`) // size of response
+	if err != nil {
+		t.Fatalf("failed to read response body: %v", err)
+	}
+	if got, expect := string(got), "Hello from upstream"; got != expect {
+		t.Fatalf("expected %q, got %q", expect, got)
+	}
+	if got, expect := b.String(), `"size":2`; !bytes.Contains([]byte(got), []byte(expect)) {
+		t.Fatalf("expected %q, got %q", expect, got)
+	}
+	if got, expect := b.String(), `"size":19`; !bytes.Contains([]byte(got), []byte(expect)) {
+		t.Fatalf("expected %q, got %q", expect, got)
+	}
+}
+
+func dclose(c io.Closer) {
+	if err := c.Close(); err != nil {
+		panic(err)
+	}
+}
+
+func mustReq(ctx context.Context, method, url string, body io.Reader) *http.Request {
+	got, err := http.NewRequestWithContext(ctx, method, url, body)
+	if err != nil {
+		panic(err)
+	}
+	return got
 }

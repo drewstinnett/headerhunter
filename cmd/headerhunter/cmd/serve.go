@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net"
 	"net/http"
@@ -71,12 +72,16 @@ $ headehunter serve https://www.example.com
 			}()
 
 			cert := mustGetCmd[string](*cmd, "cert")
+			addr, ok := listener.Addr().(*net.TCPAddr)
+			if !ok {
+				return errors.New("failed to get TCP address")
+			}
 			if cert != "" {
 				key := mustGetCmd[string](*cmd, "key")
-				slog.Info("launching https server", "addr", listener.Addr().(*net.TCPAddr))
+				slog.Info("launching https server", "addr", addr)
 				return s.ServeTLS(listener, cert, key)
 			}
-			slog.Info("launching http server", "addr", listener.Addr().(*net.TCPAddr))
+			slog.Info("launching http server", "addr", addr)
 			return s.Serve(listener)
 		},
 	}

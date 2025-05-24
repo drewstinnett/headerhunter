@@ -11,8 +11,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var verbose bool
-
 // rootCmd represents the base command when called without any subcommands.
 func newRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -21,7 +19,7 @@ func newRootCmd() *cobra.Command {
 		SilenceErrors: true,
 		SilenceUsage:  true,
 	}
-	cmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "enable verbose logging")
+	cmd.PersistentFlags().BoolP("verbose", "v", false, "enable verbose logging")
 	cmd.AddCommand(newServeCmd())
 	return cmd
 }
@@ -29,12 +27,29 @@ func newRootCmd() *cobra.Command {
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	if err := newRootCmd().Execute(); err != nil {
+	rootCmd := newRootCmd()
+	cobra.OnInitialize(func() {
+		initConfig(rootCmd)
+	})
+	if err := rootCmd.Execute(); err != nil {
 		slog.Warn("fatal error occurred", "error", err)
 		os.Exit(1)
 	}
 }
 
+func initConfig(cmd *cobra.Command) {
+	opts := log.Options{
+		ReportTimestamp: true,
+		Prefix:          "headerhunter 🫨 ",
+	}
+	if mustGetCmd[bool](*cmd, "verbose") {
+		opts.Level = log.DebugLevel
+	}
+	logger := slog.New(log.NewWithOptions(os.Stderr, opts))
+	slog.SetDefault(logger)
+}
+
+/*
 func init() { //nolint: gochecknoinits // We have to initialize the cobra config on load
 	cobra.OnInitialize(initConfig)
 }
@@ -51,3 +66,4 @@ func initConfig() {
 	logger := slog.New(log.NewWithOptions(os.Stderr, opts))
 	slog.SetDefault(logger)
 }
+*/

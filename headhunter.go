@@ -214,7 +214,9 @@ func readBodySize(r *http.Request) (int, error) {
 }
 
 func (h Hunter) logRequest(r *http.Request) error {
-	inspectareq.Print(r)
+	if err := inspectareq.Print(r); err != nil {
+		return err
+	}
 	// Read and measure request body
 	bs, err := readBodySize(r)
 	if err != nil {
